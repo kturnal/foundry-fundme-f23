@@ -6,12 +6,16 @@
 pragma solidity ^0.8.18;
 
 import {Script} from "forge-std/Script.sol";
+import {MockV3Aggregator} from "../test/mocks/MockV3Aggregator.sol";
 
 contract HelperConfig is Script {
     //If we are on a local anvil, we deploy mocks
     // else, grab the existing address from the live network.
 
     NetworkConfig public activeNetworkConfig;
+
+    uint8 public constant DECIMALS = 8;
+    int256 public constant INITIAL_PRICE = 2000e8;
 
     struct NetworkConfig{
         address priceFeed; //ETH/USD price feed address
@@ -24,7 +28,7 @@ contract HelperConfig is Script {
             activeNetworkConfig = getMainnetEthConfig();
         }
         else {
-            activeNetworkConfig = getAnvilEthConfig();
+            activeNetworkConfig = getOrCreateAnvilConfig();
         }
     }
 
@@ -44,7 +48,22 @@ contract HelperConfig is Script {
             return sepoliaConfig;
     }
 
-    function getAnvilEthConfig() public pure returns (NetworkConfig memory) { 
-        // price feed address
+    function getOrCreateAnvilConfig() public returns (NetworkConfig memory) { 
+        
+        if(activeNetworkConfig.priceFeed != address(0)) { // if its not the default address, we have already set it.
+            return activeNetworkConfig;
+        }
+
+        //1. deploy mock contracts
+        //2. return mock address
+
+        vm.startBroadcast();
+        MockV3Aggregator mockPriceFeed = new MockV3Aggregator(DECIMALS, INITIAL_PRICE); // eth has 8 decimals
+        vm.stopBroadcast();
+
+        NetworkConfig memory anvilConfig = NetworkConfig({
+            priceFeed: address(mockPriceFeed)
+            });
+            return anvilConfig;
     }
 }

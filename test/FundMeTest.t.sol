@@ -30,6 +30,20 @@ contract FundMeTest is Test {
         uint256 version = fundMe.getVersion();
         assertEq(version, 4);
     }
+
+    function testFundFailsWithoutEnoughEth() public{
+        vm.expectRevert(); // means next line shoul revert / it fails
+        fundMe.fund(); // sending 0 value.
+    }
+
+    function testFundUpdatesFundedDataStructure() public {
+        fundMe.fund{value: 10e18}();
+
+        uint256 amoundFunded = fundMe.getAddressToAmountFunded(msg.sender);
+        assertEq(amoundFunded, 10e18);
+    }
+
+
 }
 
 //  4 types of tests
