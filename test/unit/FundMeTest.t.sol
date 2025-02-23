@@ -3,8 +3,8 @@
 pragma solidity ^0.8.18;
 
 import {Test, console} from "forge-std/Test.sol";
-import {FundMe} from "../src/FundMe.sol";
-import {DeployFundMe} from "../script/DeployFundMe.s.sol";
+import {FundMe} from "../../src/FundMe.sol";
+import {DeployFundMe} from "../../script/DeployFundMe.s.sol";
 
 contract FundMeTest is Test {
 
@@ -108,6 +108,28 @@ contract FundMeTest is Test {
         assertEq(startingOwnerBalance + startingFundMeContractBalance, fundMe.getOwner().balance);
     }
 
+    function testWithdrawFromMultipleFundersCheaper() public funded {
+        // Arrange
+        uint160 numberOfFunders = 10; // addresses are 20 bytes long, so 160 bits
+        uint160 startingFunderIndex = 1; // 0 address reverts sometimes, so we start from 1
+
+        for (uint160 i = startingFunderIndex; i < numberOfFunders; i++) {
+            hoax(address(i), SEND_VALUE); // hoax is vm.prank & vm.deal combined
+            fundMe.fund{value: SEND_VALUE}();
+        }
+
+        uint256 startingOwnerBalance = fundMe.getOwner().balance;
+        uint256 startingFundMeContractBalance = address(fundMe).balance;
+
+        // Act
+        vm.startPrank(fundMe.getOwner()); // vm.broadcast + prank
+        fundMe.cheaperWithdraw(); 
+        vm.stopPrank();
+
+        // Assert
+        assertEq(address(fundMe).balance, 0);
+        assertEq(startingOwnerBalance + startingFundMeContractBalance, fundMe.getOwner().balance);
+    }
     
 }
 
@@ -125,3 +147,11 @@ contract FundMeTest is Test {
 //you can also use Chisel to sanity check code quickly ( solidity in your terminal )
 // forge snapshot -- checks how much gas was used combined with --match-test <TEST_NAME>
 // when working with anvil, gas price for tx defaults to 0
+
+// to check the storage of a contract: forge inspect FundMe storageLayout
+
+//  to check the storage of a varibale inside a contract:
+//  cast storage <CONTRACT_ADDRESS> <VARIABLE_SLOT> => gives the value of the variable
+
+// evm.codes => check opcodes gas costs
+// ez gas optimization: r/w from memory is 33 times more efficient than r/w from storage
